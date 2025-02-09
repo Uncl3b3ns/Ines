@@ -13,29 +13,33 @@
       font-family: sans-serif;
       margin: 20px;
     }
+    /* Titre centré */
+    h1 {
+      text-align: center;
+    }
+    /* Carte initialement cachée */
     #map {
       width: 100%;
       height: 600px;
       margin-top: 1em;
-      display: none; /* caché au départ */
+      display: none;
     }
+    /* Message d'erreur : grand, rouge, centré */
     #errorMsg {
-      display: none; /* caché au départ */
+      display: none;
       color: red;
       font-weight: bold;
+      font-size: 2.5em;
+      text-align: center;
       margin-top: 1em;
-    }
-    #jokeImage {
-      display: none; /* caché au départ */
-      margin-top: 1em;
-      max-width: 400px;
     }
   </style>
 </head>
 <body>
 
+<!-- Titre centré avec le dropdown -->
 <h1>
-  Excursion Romantique
+  Excursion romantique avec
   <select id="dropdown" onchange="handleDropdown()">
     <option value="" selected disabled>-- Choisir --</option>
     <option value="guillaume">Guillaume</option>
@@ -43,10 +47,8 @@
   </select>
 </h1>
 
+<!-- Message d'erreur et la carte -->
 <div id="errorMsg"></div>
-<img id="jokeImage" src="https://i.imgur.com/XIFtZJu.png" 
-     alt="Petite blague" />
-
 <div id="map"></div>
 
 <!-- Leaflet JS -->
@@ -60,9 +62,8 @@ function handleDropdown() {
   const val = document.getElementById('dropdown').value;
 
   if (val === 'guillaume') {
-    // On masque la blague, on affiche la carte
+    // Masquer le message d'erreur, afficher la carte
     document.getElementById('errorMsg').style.display = 'none';
-    document.getElementById('jokeImage').style.display = 'none';
     document.getElementById('map').style.display = 'block';
 
     if (!window.mapInitialized) {
@@ -71,13 +72,12 @@ function handleDropdown() {
     }
 
   } else {
-    // "Quelqu'un d'autre" => on masque la carte, on affiche un message + image
+    // "Quelqu'un d'autre" => masquer la carte, afficher grand message rouge
     document.getElementById('map').style.display = 'none';
     document.getElementById('errorMsg').style.display = 'block';
     document.getElementById('errorMsg').innerHTML =
       "Tu as dû te tromper...<br/>" +
-      "Une sortie romantique ne peut se faire qu'avec Guillaume !";
-    document.getElementById('jokeImage').style.display = 'block';
+      "Une sortie romantique ne peut se faire qu'avec Guillaume !";
   }
 }
 
@@ -92,7 +92,7 @@ function initMap() {
     attribution: '© OpenStreetMap'
   }).addTo(map);
 
-  // Requête Overpass (viewpoints + restaurants) dans un rayon de 10km
+  // Requête Overpass (ex: viewpoints + restaurants) dans un rayon de 10km
   const overpassQuery = `
     [out:json];
     (
@@ -108,7 +108,7 @@ function initMap() {
   })
   .then(response => response.json())
   .then(data => {
-    console.log("Réponse Overpass reçue");
+    console.log("Réponse Overpass reçue.");
     let count = 0;
     data.elements.forEach(el => {
       if (el.type === 'node') {
@@ -117,12 +117,12 @@ function initMap() {
         const name = el.tags.name || "Sans nom";
         count++;
         L.marker([lat, lon]).addTo(map)
-          .bindPopup("<b>" + name + "</b>");
+         .bindPopup("<b>" + name + "</b>");
       }
     });
     console.log("Overpass a retourné", count, "points.");
     if (count === 0) {
-      alert("Aucun point trouvé dans la zone... Essaie un rayon plus grand ou une autre ville ?");
+      alert("Aucun point trouvé... Essaie un autre rayon ou une autre ville ?");
     }
   })
   .catch(err => {
