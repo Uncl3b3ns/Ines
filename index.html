@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <title>Excursion Romantique</title>
-  <!-- Feuille de style Leaflet (sans integrity ni crossorigin) -->
+  <!-- Feuille de style Leaflet (sans integrity, pour éviter les soucis SRI) -->
   <link rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
     body {
@@ -16,14 +16,14 @@
     h1 {
       text-align: center;
     }
-    /* Carte initialement cachée */
+    /* La carte : cachée au départ */
     #map {
       width: 100%;
       height: 600px;
-      margin-top: 1em;
       display: none;
+      margin-top: 1em;
     }
-    /* Message d'erreur : grand, rouge, centré */
+    /* Message d'erreur */
     #errorMsg {
       display: none;
       color: red;
@@ -31,6 +31,22 @@
       font-size: 2.5em;
       text-align: center;
       margin-top: 1em;
+    }
+    /* Barre (ou texte) de chargement */
+    #loading {
+      text-align: center;
+      margin-top: 1em;
+      font-style: italic;
+      font-weight: bold;
+      color: #444;
+    }
+    /* Légende en bas à droite */
+    .legend {
+      background: white;
+      padding: 10px;
+      line-height: 1.6;
+      border: 2px solid #ccc;
+      border-radius: 5px;
     }
   </style>
 </head>
@@ -45,28 +61,36 @@
   </select>
 </h1>
 
+<!-- Message d'erreur si "autre" -->
 <div id="errorMsg"></div>
+
+<!-- Barre de chargement -->
+<div id="loading" style="display:none;">Chargement en cours...</div>
+
 <div id="map"></div>
 
-<!-- Leaflet JS (sans integrity ni crossorigin) -->
+<!-- Leaflet JS (sans integrity) -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 function handleDropdown() {
   const val = document.getElementById('dropdown').value;
   if (val === 'guillaume') {
-    // Masquer le message d'erreur et afficher la carte
+    // Masquer le message d'erreur
     document.getElementById('errorMsg').style.display = 'none';
+    // Afficher la barre de chargement (on va déclencher la requête)
+    document.getElementById('loading').style.display = 'block';
+    // Afficher la carte
     document.getElementById('map').style.display = 'block';
 
-    // Initialiser la carte si ce n'est pas déjà fait
+    // Initialiser la carte si pas déjà fait
     if (!window.mapInitialized) {
       initMap();
       window.mapInitialized = true;
     }
-
   } else {
-    // "Quelqu'un d'autre" => on masque la carte et on affiche un grand message
+    // "Quelqu'un d'autre" => on masque la carte, on affiche un grand message rouge
     document.getElementById('map').style.display = 'none';
+    document.getElementById('loading').style.display = 'none';
     document.getElementById('errorMsg').style.display = 'block';
     document.getElementById('errorMsg').innerHTML =
       "Tu as dû te tromper...<br/>" +
@@ -74,10 +98,30 @@ function handleDropdown() {
   }
 }
 
+// On définit deux icônes colorées : rouge (restaurant), vert (viewpoint)
+const redIcon = L.icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+  shadowUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-shadow.png',
+  iconSize:     [25, 41],
+  iconAnchor:   [12, 41],
+  popupAnchor:  [1, -34],
+  shadowSize:   [41, 41]
+});
+
+const greenIcon = L.icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+  shadowUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-shadow.png',
+  iconSize:     [25, 41],
+  iconAnchor:   [12, 41],
+  popupAnchor:  [1, -34],
+  shadowSize:   [41, 41]
+});
+
 function initMap() {
   console.log("Initialisation de la carte...");
-  // Centrage sur Paris (exemple)
-  const map = L.map('map').setView([48.8566, 2.3522], 12);
+
+  // Centrer sur Montpellier (43.610769, 3.876716)
+  const map = L.map('map').setView([43.610769, 3.876716], 13);
 
   // Calque OpenStreetMap
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -85,16 +129,35 @@ function initMap() {
     attribution: '© OpenStreetMap'
   }).addTo(map);
 
-  // Requête Overpass (points de vue et restaurants dans un rayon de 10km)
+  // Ajouter une légende en bas à droite
+  const legend = L.control({ position: "bottomright" });
+  legend.onAdd = function(map) {
+    const div = L.DomUtil.create("div", "legend");
+    div.innerHTML = `
+      <div>
+        <img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png" width="15"/>
+        Point de vue
+      </div>
+      <div>
+        <img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png" width="15"/>
+        Restaurant
+      </div>
+    `;
+    return div;
+  };
+  legend.addTo(map);
+
+  // Requête Overpass (viewpoints + restaurants dans un rayon de 7km autour de Montpellier)
   const overpassQuery = `
     [out:json];
     (
-      node["tourism"="viewpoint"](around:10000,48.8566,2.3522);
-      node["amenity"="restaurant"](around:10000,48.8566,2.3522);
+      node["tourism"="viewpoint"](around:7000,43.610769,3.876716);
+      node["amenity"="restaurant"](around:7000,43.610769,3.876716);
     );
     out;
   `;
 
+  // Lancer la requête Overpass
   fetch('https://overpass-api.de/api/interpreter', {
     method: 'POST',
     body: overpassQuery
@@ -110,9 +173,20 @@ function initMap() {
         const lon = el.lon;
         const name = el.tags.name || "Sans nom";
         count++;
-        // Ajout d'un marqueur pour chaque node
-        L.marker([lat, lon]).addTo(map)
-          .bindPopup("<b>" + name + "</b>");
+
+        // Choix de l'icône en fonction du type
+        let iconChoice = null;
+        if (el.tags.tourism === "viewpoint") {
+          iconChoice = greenIcon;
+        } else if (el.tags.amenity === "restaurant") {
+          iconChoice = redIcon;
+        } else {
+          iconChoice = L.Icon.Default; // fallback
+        }
+
+        // Ajouter un marqueur avec l'icône adéquate
+        L.marker([lat, lon], { icon: iconChoice }).addTo(map)
+         .bindPopup("<b>" + name + "</b>");
       }
     });
 
@@ -124,6 +198,10 @@ function initMap() {
   .catch(err => {
     console.error("Erreur Overpass :", err);
     alert("Erreur lors de la requête Overpass : " + err);
+  })
+  .finally(() => {
+    // Quoiqu'il arrive, on cache le message de chargement
+    document.getElementById('loading').style.display = 'none';
   });
 }
 </script>
