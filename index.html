@@ -1,136 +1,34 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
-  <meta charset="utf-8" />
-  <title>Excursion Romantique</title>
-  <!-- Feuilles de style Leaflet -->
+  <meta charset="utf-8"/>
+  <title>Carte Leaflet</title>
+  <!-- CSS Leaflet avec SRI correct -->
   <link rel="stylesheet"
         href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-sA+3FRsEn8ZfFBl+3NsGhccxCZcAPScGbumfIDlHT4g="
+        integrity="sha256-uHH2rvvQ6/h48Z1ix/J4eBHYCsV05K1h5MDdB2woO6g="
         crossorigin=""/>
   <style>
-    body {
-      font-family: sans-serif;
-      margin: 20px;
-    }
-    /* Titre centré */
-    h1 {
-      text-align: center;
-    }
-    /* Carte initialement cachée */
     #map {
       width: 100%;
-      height: 600px;
-      margin-top: 1em;
-      display: none;
-    }
-    /* Message d'erreur : grand, rouge, centré */
-    #errorMsg {
-      display: none;
-      color: red;
-      font-weight: bold;
-      font-size: 2.5em;
-      text-align: center;
-      margin-top: 1em;
+      height: 500px;
     }
   </style>
 </head>
 <body>
-
-<!-- Titre centré avec le dropdown -->
-<h1>
-  Excursion romantique avec
-  <select id="dropdown" onchange="handleDropdown()">
-    <option value="" selected disabled>-- Choisir --</option>
-    <option value="guillaume">Guillaume</option>
-    <option value="autre">Quelqu'un d'autre</option>
-  </select>
-</h1>
-
-<!-- Message d'erreur et la carte -->
-<div id="errorMsg"></div>
 <div id="map"></div>
 
-<!-- Leaflet JS -->
+<!-- JS Leaflet avec SRI correct -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-zLZf2sZJg6EWXutPe7pNi7fMgy2Z6Qx5xMt2r6i2Hwc="
+        integrity="sha256-rn0HVOtiPf/4F78/cRlfW88vPc39AVqY0MjtPLfPmXA="
         crossorigin="">
 </script>
-
 <script>
-function handleDropdown() {
-  const val = document.getElementById('dropdown').value;
-
-  if (val === 'guillaume') {
-    // Masquer le message d'erreur, afficher la carte
-    document.getElementById('errorMsg').style.display = 'none';
-    document.getElementById('map').style.display = 'block';
-
-    if (!window.mapInitialized) {
-      initMap();
-      window.mapInitialized = true;
-    }
-
-  } else {
-    // "Quelqu'un d'autre" => masquer la carte, afficher grand message rouge
-    document.getElementById('map').style.display = 'none';
-    document.getElementById('errorMsg').style.display = 'block';
-    document.getElementById('errorMsg').innerHTML =
-      "Tu as dû te tromper...<br/>" +
-      "Une sortie romantique ne peut se faire qu'avec Guillaume !";
-  }
-}
-
-function initMap() {
-  console.log("Initialisation de la carte...");
-  // Centrage sur Paris pour l'exemple
+  // Exemple initialisation
   const map = L.map('map').setView([48.8566, 2.3522], 12);
-
-  // Calque OpenStreetMap
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '© OpenStreetMap'
+    maxZoom: 19
   }).addTo(map);
-
-  // Requête Overpass (ex: viewpoints + restaurants) dans un rayon de 10km
-  const overpassQuery = `
-    [out:json];
-    (
-      node["tourism"="viewpoint"](around:10000,48.8566,2.3522);
-      node["amenity"="restaurant"](around:10000,48.8566,2.3522);
-    );
-    out;
-  `;
-
-  fetch('https://overpass-api.de/api/interpreter', {
-    method: 'POST',
-    body: overpassQuery
-  })
-  .then(response => response.json())
-  .then(data => {
-    console.log("Réponse Overpass reçue.");
-    let count = 0;
-    data.elements.forEach(el => {
-      if (el.type === 'node') {
-        const lat = el.lat;
-        const lon = el.lon;
-        const name = el.tags.name || "Sans nom";
-        count++;
-        L.marker([lat, lon]).addTo(map)
-         .bindPopup("<b>" + name + "</b>");
-      }
-    });
-    console.log("Overpass a retourné", count, "points.");
-    if (count === 0) {
-      alert("Aucun point trouvé... Essaie un autre rayon ou une autre ville ?");
-    }
-  })
-  .catch(err => {
-    console.error("Erreur Overpass :", err);
-    alert("Erreur lors de la requête Overpass : " + err);
-  });
-}
 </script>
-
 </body>
 </html>
