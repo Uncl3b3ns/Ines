@@ -2,209 +2,141 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Excursion Romantique</title>
-  <!-- Feuille de style Leaflet (sans integrity, pour éviter les soucis SRI) -->
-  <link rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <title>Carte dynamique Overpass</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
-    body {
-      font-family: sans-serif;
-      margin: 20px;
-    }
-    /* Titre centré */
-    h1 {
-      text-align: center;
-    }
-    /* La carte : cachée au départ */
+    body { margin: 0; padding: 0; }
     #map {
       width: 100%;
-      height: 600px;
-      display: none;
-      margin-top: 1em;
+      height: 100vh; /* plein écran pour la démo */
     }
-    /* Message d'erreur */
-    #errorMsg {
-      display: none;
-      color: red;
-      font-weight: bold;
-      font-size: 2.5em;
-      text-align: center;
-      margin-top: 1em;
-    }
-    /* Barre (ou texte) de chargement */
     #loading {
-      text-align: center;
-      margin-top: 1em;
-      font-style: italic;
+      position: absolute;
+      top: 10px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.8);
+      padding: 5px 10px;
+      border-radius: 4px;
       font-weight: bold;
-      color: #444;
-    }
-    /* Légende en bas à droite */
-    .legend {
-      background: white;
-      padding: 10px;
-      line-height: 1.6;
-      border: 2px solid #ccc;
-      border-radius: 5px;
+      display: none;
+      z-index: 999;
     }
   </style>
 </head>
 <body>
 
-<h1>
-  Excursion romantique avec
-  <select id="dropdown" onchange="handleDropdown()">
-    <option value="" selected disabled>-- Choisir --</option>
-    <option value="guillaume">Guillaume</option>
-    <option value="autre">Quelqu'un d'autre</option>
-  </select>
-</h1>
-
-<!-- Message d'erreur si "autre" -->
-<div id="errorMsg"></div>
-
-<!-- Barre de chargement -->
-<div id="loading" style="display:none;">Chargement en cours...</div>
-
 <div id="map"></div>
+<div id="loading">Chargement en cours...</div>
 
-<!-- Leaflet JS (sans integrity) -->
+<!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-function handleDropdown() {
-  const val = document.getElementById('dropdown').value;
-  if (val === 'guillaume') {
-    // Masquer le message d'erreur
-    document.getElementById('errorMsg').style.display = 'none';
-    // Afficher la barre de chargement (on va déclencher la requête)
-    document.getElementById('loading').style.display = 'block';
-    // Afficher la carte
-    document.getElementById('map').style.display = 'block';
-
-    // Initialiser la carte si pas déjà fait
-    if (!window.mapInitialized) {
-      initMap();
-      window.mapInitialized = true;
-    }
-  } else {
-    // "Quelqu'un d'autre" => on masque la carte, on affiche un grand message rouge
-    document.getElementById('map').style.display = 'none';
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('errorMsg').style.display = 'block';
-    document.getElementById('errorMsg').innerHTML =
-      "Tu as dû te tromper...<br/>" +
-      "Une sortie romantique ne peut se faire qu'avec Guillaume !";
-  }
-}
-
-// On définit deux icônes colorées : rouge (restaurant), vert (viewpoint)
-const redIcon = L.icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-  shadowUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-shadow.png',
-  iconSize:     [25, 41],
-  iconAnchor:   [12, 41],
-  popupAnchor:  [1, -34],
-  shadowSize:   [41, 41]
-});
-
+// Icônes de couleur
 const greenIcon = L.icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
   shadowUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-shadow.png',
-  iconSize:     [25, 41],
-  iconAnchor:   [12, 41],
-  popupAnchor:  [1, -34],
-  shadowSize:   [41, 41]
+  iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34], shadowSize: [41,41]
+});
+const redIcon = L.icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+  shadowUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-shadow.png',
+  iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34], shadowSize: [41,41]
 });
 
-function initMap() {
-  console.log("Initialisation de la carte...");
+// Initialisation de la carte
+const map = L.map('map').setView([43.610769, 3.876716], 13);
 
-  // Centrer sur Montpellier (43.610769, 3.876716)
-  const map = L.map('map').setView([43.610769, 3.876716], 13);
+// Calque OSM
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19
+}).addTo(map);
 
-  // Calque OpenStreetMap
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '© OpenStreetMap'
-  }).addTo(map);
+// Groupement de marqueurs
+const markersLayer = L.layerGroup().addTo(map);
 
-  // Ajouter une légende en bas à droite
-  const legend = L.control({ position: "bottomright" });
-  legend.onAdd = function(map) {
-    const div = L.DomUtil.create("div", "legend");
-    div.innerHTML = `
-      <div>
-        <img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png" width="15"/>
-        Point de vue
-      </div>
-      <div>
-        <img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png" width="15"/>
-        Restaurant
-      </div>
-    `;
-    return div;
-  };
-  legend.addTo(map);
+// Barre (ou message) de chargement
+const loadingDiv = document.getElementById('loading');
 
-  // Requête Overpass (viewpoints + restaurants dans un rayon de 7km autour de Montpellier)
-  const overpassQuery = `
+// Fonction qui construit la requête Overpass pour la bounding box courante
+function buildOverpassQuery(bounds) {
+  // bounds est un objet Leaflet avec getSouth(), getWest(), getNorth(), getEast()
+  const s = bounds.getSouth();
+  const w = bounds.getWest();
+  const n = bounds.getNorth();
+  const e = bounds.getEast();
+
+  // On recherche restaurants et viewpoints dans la bounding box
+  return `
     [out:json];
     (
-      node["tourism"="viewpoint"](around:7000,43.610769,3.876716);
-      node["amenity"="restaurant"](around:7000,43.610769,3.876716);
+      node["amenity"="restaurant"](${s},${w},${n},${e});
+      node["tourism"="viewpoint"](${s},${w},${n},${e});
     );
     out;
   `;
+}
 
-  // Lancer la requête Overpass
-  fetch('https://overpass-api.de/api/interpreter', {
+// Fonction qui met à jour les marqueurs selon la vue actuelle
+let currentFetch = null; // pour éviter chevauchements
+function updateMapData() {
+  // On vide d'abord le layerGroup
+  markersLayer.clearLayers();
+
+  // On affiche "chargement en cours"
+  loadingDiv.style.display = 'block';
+
+  // Annuler la requête précédente si jamais...
+  // (fetch ne se cancelle pas aisément natif, c’est un exemple)
+  // On peut juste ignorer le résultat précédent.
+
+  // Construire la requête
+  const bounds = map.getBounds();
+  const overpassQuery = buildOverpassQuery(bounds);
+
+  currentFetch = fetch('https://overpass-api.de/api/interpreter', {
     method: 'POST',
     body: overpassQuery
   })
-  .then(response => response.json())
+  .then(r => r.json())
   .then(data => {
-    console.log("Réponse Overpass reçue.");
-    let count = 0;
-
+    // Parcourir les éléments et ajouter des marqueurs
     data.elements.forEach(el => {
       if (el.type === 'node') {
         const lat = el.lat;
         const lon = el.lon;
-        const name = el.tags.name || "Sans nom";
-        count++;
+        const name = el.tags.name || 'Sans nom';
 
-        // Choix de l'icône en fonction du type
-        let iconChoice = null;
-        if (el.tags.tourism === "viewpoint") {
-          iconChoice = greenIcon;
-        } else if (el.tags.amenity === "restaurant") {
+        let iconChoice = L.icon();
+        if (el.tags.amenity === 'restaurant') {
           iconChoice = redIcon;
-        } else {
-          iconChoice = L.Icon.Default; // fallback
+        } else if (el.tags.tourism === 'viewpoint') {
+          iconChoice = greenIcon;
         }
 
-        // Ajouter un marqueur avec l'icône adéquate
-        L.marker([lat, lon], { icon: iconChoice }).addTo(map)
-         .bindPopup("<b>" + name + "</b>");
+        L.marker([lat, lon], { icon: iconChoice })
+         .bindPopup("<b>" + name + "</b>")
+         .addTo(markersLayer);
       }
     });
-
-    console.log("Overpass a retourné", count, "points.");
-    if (count === 0) {
-      alert("Aucun point trouvé... Essaie un autre rayon ou une autre ville ?");
-    }
   })
   .catch(err => {
-    console.error("Erreur Overpass :", err);
-    alert("Erreur lors de la requête Overpass : " + err);
+    console.error("Erreur Overpass:", err);
+    alert("Erreur Overpass: " + err);
   })
   .finally(() => {
-    // Quoiqu'il arrive, on cache le message de chargement
-    document.getElementById('loading').style.display = 'none';
+    // On cache le message de chargement
+    loadingDiv.style.display = 'none';
   });
 }
-</script>
 
+// Au premier chargement, on charge la zone courante
+updateMapData();
+
+// À chaque fois que la vue (zoom, pan) est terminée, on recharge
+map.on('moveend', () => {
+  updateMapData();
+});
+</script>
 </body>
 </html>
