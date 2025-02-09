@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Excursion Romantique</title>
+  <!-- Feuilles de style Leaflet -->
+  <link rel="stylesheet" 
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-sA+3FRsEn8ZfFBl+3NsGhccxCZcAPScGbumfIDlHT4g="
+        crossorigin=""/>
+  <style>
+    /* Pour s'assurer que la carte s'affiche correctement */
+    #map {
+      width: 100%;
+      height: 600px;
+      margin-top: 1em;
+    }
+  </style>
+</head>
+<body>
+
+<h1>
+  Excursion Romantique
+  <!-- Menu déroulant -->
+  <select id="dropdown" onchange="handleDropdown()">
+    <option value="" selected disabled>-- Choisir --</option>
+    <option value="guillaume">Guillaume</option>
+    <option value="autre">Quelqu'un d'autre</option>
+  </select>
+</h1>
+
+<!-- Message d'erreur (caché par défaut) -->
+<div id="errorMsg" style="display:none; color:red; font-weight:bold;">
+  Accès refusé : Vous n'êtes pas Guillaume !
+</div>
+
+<!-- Conteneur de la carte (caché par défaut) -->
+<div id="map" style="display:none;"></div>
+
+<!-- Script JS Leaflet -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-zLZf2sZJg6EWXutPe7pNi7fMgy2Z6Qx5xMt2r6i2Hwc="
+        crossorigin="">
+</script>
+
+<script>
+  // Fonction appelée quand on change le menu déroulant
+  function handleDropdown() {
+    const val = document.getElementById('dropdown').value;
+    if (val === 'guillaume') {
+      // On masque le message d'erreur, on affiche la carte
+      document.getElementById('errorMsg').style.display = 'none';
+      document.getElementById('map').style.display = 'block';
+
+      // Initialiser la carte seulement si ce n'est pas déjà fait
+      if (!window.mapInitialized) {
+        initMap();
+        window.mapInitialized = true;
+      }
+    } else {
+      // On affiche l'erreur, on masque la carte
+      document.getElementById('errorMsg').style.display = 'block';
+      document.getElementById('map').style.display = 'none';
+    }
+  }
+
+  function initMap() {
+    // Création de la carte centrée par exemple sur Paris
+    const map = L.map('map').setView([48.8566, 2.3522], 12);
+
+    // Calque OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    // ---- Overpass API ----
+    // Exemple : on cherche tourism=viewpoint dans un rayon ~3000m autour de Paris
+    // Tu peux personnaliser pour d'autres tags (amenity=restaurant, tourism=attraction, etc.)
+    const overpassQuery = `
+      [out:json];
+      (
+        node["tourism"="viewpoint"](around:3000,48.8566,2.3522);
+        node["amenity"="restaurant"](around:3000,48.8566,2.3522);
+      );
+      out;
+    `;
+
+    fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: overpassQuery
+    })
+    .then(response => response.json())
+    .then(data => {
+      // Parcourir tous les éléments renvoyés par Overpass
+      data.elements.forEach(element => {
+        // On ne traite que les nodes
+        if (element.type === 'node') {
+          // Récupérer latitude, longitude
+          const lat = element.lat;
+          const lon = element.lon;
+          // Nom affiché dans le popup (sinon "Inconnu")
+          const name = element.tags.name || "Inconnu";
+
+          // Création d'un marqueur Leaflet
+          L.marker([lat, lon]).addTo(map)
+            .bindPopup("<b>" + name + "</b>");
+        }
+      });
+    })
+    .catch(err => {
+      console.error("Erreur Overpass:", err);
+    });
+  }
+</script>
+
+</body>
+</html>
