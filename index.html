@@ -124,9 +124,9 @@ function initMap() {
   console.log("Initialisation de la carte...");
   loadingDiv = document.getElementById('loading');
 
-  // Création de la carte, centrée sur Montpellier, zoom 13, et minZoom=8
+  // Création de la carte, centrée sur Montpellier, zoom 13, minZoom=10
   map = L.map('map', {
-    minZoom: 8,
+    minZoom: 10,  // on limite le dézoom
     maxZoom: 19
   }).setView([43.610769, 3.876716], 13);
 
