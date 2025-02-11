@@ -72,7 +72,7 @@
 function handleDropdown() {
   const val = document.getElementById('dropdown').value;
   if (val === 'guillaume') {
-    // On masque le message d'erreur, on affiche la carte + chargement
+    // On masque le message d'erreur, on affiche la carte
     document.getElementById('errorMsg').style.display = 'none';
     document.getElementById('map').style.display = 'block';
 
@@ -113,10 +113,20 @@ const greenIcon = L.icon({
   shadowSize: [41, 41]
 });
 
+// Icône rose pour la "maison de l'amour"
+const pinkIcon = L.icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-pink.png',
+  shadowUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
 // --- Variables globales ---
-let map;                // la carte Leaflet
-let markersLayer;       // groupe de marqueurs
-let loadingDiv;         // div "Chargement..."
+let map;                 // la carte Leaflet
+let markersLayer;        // groupe de marqueurs Overpass
+let loadingDiv;          // div "Chargement..."
 let currentFetch = null; // pour gérer la requête en cours, si besoin
 
 // --- Initialisation de la carte ---
@@ -126,7 +136,7 @@ function initMap() {
 
   // Création de la carte, centrée sur Montpellier, zoom 13, minZoom=10
   map = L.map('map', {
-    minZoom: 10,  // on limite le dézoom
+    minZoom: 10,
     maxZoom: 19
   }).setView([43.610769, 3.876716], 13);
 
@@ -136,7 +146,7 @@ function initMap() {
     attribution: '© OpenStreetMap'
   }).addTo(map);
 
-  // Groupe pour les marqueurs (restaurants, viewpoints)
+  // Groupe pour les marqueurs Overpass
   markersLayer = L.layerGroup().addTo(map);
 
   // Légende en bas à droite
@@ -152,12 +162,16 @@ function initMap() {
         <img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png" width="15"/>
         Restaurant
       </div>
+      <div>
+        <img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-pink.png" width="15"/>
+        La maison de l'amour
+      </div>
     `;
     return div;
   };
   legend.addTo(map);
 
-  // A chaque fin de déplacement/zoom, on met à jour
+  // A chaque fin de déplacement/zoom, on met à jour la zone
   map.on('moveend', updateMapData);
 
   // Charger les points initiaux
@@ -182,8 +196,7 @@ function updateMapData() {
   const n = bounds.getNorth();
   const e = bounds.getEast();
 
-  // Construire la requête Overpass
-  // Filtre : restaurants et viewpoints
+  // Construire la requête Overpass (restaurants + viewpoints dans la bbox)
   const overpassQuery = `
     [out:json];
     (
@@ -217,11 +230,12 @@ function updateMapData() {
 
         count++;
         L.marker([lat, lon], { icon: iconChoice })
-         .bindPopup("<b>" + name + "</b>")
-         .addTo(markersLayer);
+          .bindPopup("<b>" + name + "</b>")
+          .addTo(markersLayer);
       }
     });
     console.log("Trouvé", count, "points.");
+
     if (count === 0) {
       alert("Aucun point trouvé dans cette zone. Essaie de te déplacer ou de zoomer.");
     }
@@ -231,9 +245,17 @@ function updateMapData() {
     alert("Erreur Overpass : " + err);
   })
   .finally(() => {
+    // Quoiqu'il arrive, on ajoute le marqueur rose "maison de l'amour"
+    // (lat/lon approximatifs pour 50 rue de la Grotte des Demoiselles)
+    L.marker([43.63509, 3.89272], { icon: pinkIcon })
+      .bindPopup("<b>La maison de l'amour &lt;3</b>")
+      .addTo(markersLayer);
+
+    // On cache le chargement
     loadingDiv.style.display = 'none';
   });
 }
 </script>
+
 </body>
 </html>
