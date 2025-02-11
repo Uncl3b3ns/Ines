@@ -11,15 +11,13 @@
       margin: 20px;
       padding: 0;
     }
-    /* Titre centré */
     h1 {
       text-align: center;
     }
-    /* La carte : cachée au départ */
     #map {
       width: 100%;
       height: 600px;
-      display: none;
+      display: none; /* cachée tant qu'on n'a pas choisi "Guillaume" */
       margin-top: 1em;
     }
     /* Message d'erreur : grand, rouge, centré */
@@ -31,7 +29,7 @@
       text-align: center;
       margin-top: 1em;
     }
-    /* Barre ou texte de chargement */
+    /* Barre "Chargement..." */
     #loading {
       display: none;
       text-align: center;
@@ -39,7 +37,7 @@
       color: #444;
       margin-top: 1em;
     }
-    /* Légende (on n'y inclut PAS le point rose) */
+    /* Légende (resto/viewpoint uniquement) */
     .legend {
       background: white;
       padding: 10px;
@@ -51,7 +49,6 @@
 </head>
 <body>
 
-<!-- Titre + menu déroulant -->
 <h1>
   Excursion romantique avec
   <select id="dropdown" onchange="handleDropdown()">
@@ -68,24 +65,20 @@
 <!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// --- Menu déroulant ---
+// --- Menu ---
 function handleDropdown() {
   const val = document.getElementById('dropdown').value;
   if (val === 'guillaume') {
-    // On masque le message d'erreur, on affiche la carte
     document.getElementById('errorMsg').style.display = 'none';
     document.getElementById('map').style.display = 'block';
 
-    // Si la carte n'est pas encore initialisée, on le fait
     if (!window.mapInitialized) {
       initMap();
       window.mapInitialized = true;
     } else {
-      // Si déjà init, on relance une mise à jour
       updateMapData();
     }
   } else {
-    // "Quelqu'un d'autre" => on masque la carte, on affiche le message rouge
     document.getElementById('map').style.display = 'none';
     document.getElementById('errorMsg').style.display = 'block';
     document.getElementById('errorMsg').innerHTML =
@@ -94,7 +87,7 @@ function handleDropdown() {
   }
 }
 
-// --- Icônes de couleur ---
+// --- Icônes ---
 const redIcon = L.icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
   shadowUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-shadow.png',
@@ -111,7 +104,7 @@ const greenIcon = L.icon({
   popupAnchor: [1, -34],
   shadowSize: [41, 41]
 });
-// Icône rose pour "La maison de l'amour"
+// Icône rose pour la maison de l'amour
 const pinkIcon = L.icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-pink.png',
   shadowUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-shadow.png',
@@ -121,33 +114,31 @@ const pinkIcon = L.icon({
   shadowSize: [41, 41]
 });
 
-// --- Variables globales ---
-let map;                 // la carte Leaflet
-let markersLayer;        // groupe de marqueurs
-let loadingDiv;          // div "Chargement..."
-let currentFetch = null; // requête en cours (optionnel)
+// Coordonnées approximatives de "50 rue de la Grotte des Demoiselles"
+const latMaison = 43.63509;
+const lonMaison = 3.89272;
 
-// --- Initialiser la carte ---
+let map, markersLayer, loadingDiv;
+
+// --- Init carte ---
 function initMap() {
   console.log("Initialisation de la carte...");
   loadingDiv = document.getElementById('loading');
 
-  // Centre sur Montpellier, zoom 13, minZoom=10
+  // On centre directement sur la maison, zoom=14, minZoom=12 => on évite 2 niveaux de dézoom
   map = L.map('map', {
-    minZoom: 10,
+    minZoom: 12,
     maxZoom: 19
-  }).setView([43.610769, 3.876716], 13);
+  }).setView([latMaison, lonMaison], 14);
 
-  // Calque OSM
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '© OpenStreetMap'
   }).addTo(map);
 
-  // Groupe de marqueurs
   markersLayer = L.layerGroup().addTo(map);
 
-  // Légende en bas à droite (resto / viewpoint, pas la maison rose)
+  // Légende (sans le marqueur rose)
   const legend = L.control({ position: "bottomright" });
   legend.onAdd = function() {
     const div = L.DomUtil.create("div", "legend");
@@ -165,25 +156,18 @@ function initMap() {
   };
   legend.addTo(map);
 
-  // A chaque fin de déplacement/zoom, on met à jour la zone
   map.on('moveend', updateMapData);
 
-  // Charger les points initiaux
+  // Première mise à jour
   updateMapData();
 }
 
-// --- Mise à jour Overpass + ajout du point rose ---
+// --- MàJ Overpass + Maison de l'amour ---
 function updateMapData() {
-  // Si la carte est masquée, on ne fait rien
   if (!map) return;
-
-  // Vider l'ancien groupe
   markersLayer.clearLayers();
 
-  // Ajouter d'office le marqueur rose "maison de l'amour"
-  // (Latitude/Longitude à ajuster selon l'adresse exacte)
-  const latMaison = 43.63509;
-  const lonMaison = 3.89272;
+  // Ajouter la maison de l'amour en rose
   L.marker([latMaison, lonMaison], { icon: pinkIcon })
     .bindPopup("<b>La maison de l'amour &lt;3</b>")
     .addTo(markersLayer);
@@ -191,12 +175,12 @@ function updateMapData() {
   // Afficher "chargement..."
   loadingDiv.style.display = 'block';
 
-  // Récupérer la bounding box courante
-  const bounds = map.getBounds();
-  const s = bounds.getSouth();
-  const w = bounds.getWest();
-  const n = bounds.getNorth();
-  const e = bounds.getEast();
+  // Bounds courants
+  const b = map.getBounds();
+  const s = b.getSouth();
+  const w = b.getWest();
+  const n = b.getNorth();
+  const e = b.getEast();
 
   // Overpass : restaurants + viewpoints
   const overpassQuery = `
@@ -208,8 +192,7 @@ function updateMapData() {
     out;
   `;
 
-  // Lancer la requête
-  currentFetch = fetch('https://overpass-api.de/api/interpreter', {
+  fetch('https://overpass-api.de/api/interpreter', {
     method: 'POST',
     body: overpassQuery
   })
@@ -222,11 +205,14 @@ function updateMapData() {
         const lon = el.lon;
         const name = el.tags.name || "Sans nom";
 
-        let iconChoice = L.icon();
+        // Choix icône
+        let iconChoice;
         if (el.tags.amenity === "restaurant") {
           iconChoice = redIcon;
         } else if (el.tags.tourism === "viewpoint") {
           iconChoice = greenIcon;
+        } else {
+          return; // ignore si pas l'un de ces deux
         }
 
         count++;
@@ -235,21 +221,19 @@ function updateMapData() {
           .addTo(markersLayer);
       }
     });
-    console.log("Points Overpass chargés:", count);
+    console.log("Trouvé", count, "points dans la zone.");
     if (count === 0) {
-      alert("Aucun point trouvé dans cette zone. Déplace ou zoome la carte.");
+      alert("Aucun point trouvé dans cette zone. Zoome ou déplace la carte.");
     }
   })
   .catch(err => {
-    console.error("Erreur Overpass :", err);
-    alert("Erreur Overpass : " + err);
+    console.error("Erreur Overpass:", err);
+    alert("Erreur Overpass: " + err);
   })
   .finally(() => {
-    // On masque le 'loading'
     loadingDiv.style.display = 'none';
   });
 }
 </script>
-
 </body>
 </html>
